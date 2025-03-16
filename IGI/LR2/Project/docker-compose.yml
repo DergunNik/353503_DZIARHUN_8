@@ -1,7 +1,8 @@
 version: "3.8"
+
 services:
   traefik:
-    image: "traefik:2.5.6"
+    image: "traefik:v2.10"
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
@@ -14,13 +15,11 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
 
   php-apache:
-    build:
-      context: .
+    build: .
     depends_on:
-      - "traefik"
-      - "mysql"
+      - mysql
     volumes:
-      - "./www:/var/www/html/"
+      - "./www:/var/www/html"
       - "./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini"
     labels:
       - "traefik.enable=true"
@@ -28,38 +27,31 @@ services:
       - "traefik.http.routers.php-apache.entrypoints=web"
 
   mysql:
-    image: "mysql:8.0.27"
-    # Uncomment line below if you are using a Mac with the M1 chip
-    #platform: linux/amd64
-    depends_on:
-      - "traefik"
+    image: "mysql:8.3"
     volumes:
-      #- "./mysql_seed.sql:/docker-entrypoint-initdb.d/mysql_seed.sql"
-      - "./dbdata:/var/lib/mysql"
-    command: 
-      - "--default-authentication-plugin=mysql_native_password"
+      - "dbdata:/var/lib/mysql"
+    command: ["--default-authentication-plugin=mysql_native_password"]
     environment:
-      MYSQL_ROOT_PASSWORD: "rootPASS"
-      MYSQL_DATABASE: "dbase"
-      MYSQL_USER: "dbuser"
-      MYSQL_PASSWORD: "dbpass"
-    labels:
-      - "traefik.enable=false"
+      MYSQL_ROOT_PASSWORD: rootPASS
+      MYSQL_DATABASE: dbase
+      MYSQL_USER: dbuser
+      MYSQL_PASSWORD: dbpass
 
   phpmyadmin:
-    image: "phpmyadmin/phpmyadmin"
+    image: "phpmyadmin:latest"
     depends_on:
-      - "mysql"
-    links:
-      - "mysql"
+      - mysql
     environment:
-      PMA_HOST: "mysql"
+      PMA_HOST: mysql
       PMA_PORT: "3306"
       UPLOAD_LIMIT: "256M"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`pma.localhost`, `pma.lvh.me`)"
-      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`pma.localhost`, `pma.lvh.me`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=web"
+
+volumes:
+  dbdata:
 
 networks:
   default:
